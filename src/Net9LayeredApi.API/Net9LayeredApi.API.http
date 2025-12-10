@@ -1,0 +1,6 @@
+@Net9LayeredApi.API_HostAddress = http://localhost:5000
+
+GET {{Net9LayeredApi.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
