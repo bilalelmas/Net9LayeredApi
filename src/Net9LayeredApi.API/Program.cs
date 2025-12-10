@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Net9LayeredApi.API.Middleware;
+using Net9LayeredApi.Application.Mapping;
+using Net9LayeredApi.Application.Services;
+using Net9LayeredApi.Application.Services.Interfaces;
 using Net9LayeredApi.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +10,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// AutoMapper
+builder.Services.AddAutoMapper(typeof(MappingProfile));
+
+// Services
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 var app = builder.Build();
 
