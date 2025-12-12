@@ -16,19 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 // OpenAPI/Swagger
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
-    {
-        Title = "Net9 Layered API",
-        Version = "v1",
-        Description = ".NET 9 REST API - Katmanlı mimari ile geliştirilmiş e-ticaret API'si",
-        Contact = new Microsoft.OpenApi.Models.OpenApiContact
-        {
-            Name = "API Desteği"
-        }
-    });
-});
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
