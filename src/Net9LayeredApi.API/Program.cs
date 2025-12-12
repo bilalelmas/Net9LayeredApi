@@ -13,7 +13,23 @@ using Net9LayeredApi.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// OpenAPI/Swagger
 builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Net9 Layered API",
+        Version = "v1",
+        Description = ".NET 9 REST API - Katmanlı mimari ile geliştirilmiş e-ticaret API'si",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "API Desteği"
+        }
+    });
+});
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -46,8 +62,15 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// Swagger UI
 if (app.Environment.IsDevelopment())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Net9 Layered API v1");
+        c.RoutePrefix = string.Empty; // Swagger'ı root'ta göster
+    });
     app.MapOpenApi();
 }
 
