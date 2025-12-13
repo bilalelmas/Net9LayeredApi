@@ -3,7 +3,7 @@
 # Net9 Layered API Test Script
 # Bu script API'nin temel fonksiyonlarını test eder
 
-API_URL="http://localhost:5000"
+API_URL="http://localhost:5002"
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'

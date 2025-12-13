@@ -69,7 +69,7 @@ dotnet restore
 dotnet run
 ```
 
-API `http://localhost:5000` adresinde çalışacaktır.
+API `http://localhost:5002` adresinde çalışacaktır.
 
 ## 📚 API Endpoints
 
@@ -109,7 +109,7 @@ API `http://localhost:5000` adresinde çalışacaktır.
 
 ## 📖 Swagger Dokümantasyonu
 
-Proje çalıştığında Swagger UI'a `http://localhost:5000` adresinden erişebilirsiniz.
+Proje çalıştığında Swagger UI'a `http://localhost:5002` adresinden erişebilirsiniz.
 
 ## 🔒 Güvenlik
 
@@ -161,7 +161,7 @@ Bu script şunları test eder:
 
 1. **Health Check:**
    ```bash
-   curl http://localhost:5000/ping
+   curl http://localhost:5002/ping
    ```
    Beklenen: `pong`
 
@@ -170,7 +170,7 @@ Bu script şunları test eder:
 
 3. **User Oluştur:**
    ```bash
-   curl -X POST http://localhost:5000/api/users \
+   curl -X POST http://localhost:5002/api/users \
      -H "Content-Type: application/json" \
      -d '{"username":"testuser","email":"test@example.com","password":"Test123!","role":"User"}'
    ```
