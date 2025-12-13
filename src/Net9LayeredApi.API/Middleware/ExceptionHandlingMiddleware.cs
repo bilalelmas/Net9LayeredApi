@@ -61,7 +61,7 @@ public sealed class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Beklenmeyen bir hata oluştu");
+            _logger.LogError(ex, "Beklenmeyen bir hata oluştu: {Message}", ex.Message);
 
             if (context.Response.HasStarted)
             {
@@ -72,7 +72,12 @@ public sealed class ExceptionHandlingMiddleware
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
 
-            var response = ApiResponse.Fail("Beklenmeyen bir hata oluştu.");
+            // Development ortamında detaylı hata mesajı göster
+            var errorMessage = _environment.IsDevelopment() 
+                ? $"Beklenmeyen bir hata oluştu: {ex.Message}" 
+                : "Beklenmeyen bir hata oluştu.";
+            
+            var response = ApiResponse.Fail(errorMessage);
             var json = JsonSerializer.Serialize(response);
 
             await context.Response.WriteAsync(json);
