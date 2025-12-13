@@ -56,7 +56,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Net9 Layered API v1");
-        c.RoutePrefix = string.Empty; // Swagger'ı root'ta göster
+        c.RoutePrefix = "swagger"; // Swagger'ı /swagger adresinde göster
     });
 }
 
