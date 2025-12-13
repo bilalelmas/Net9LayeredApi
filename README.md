@@ -139,6 +139,44 @@ Tüm endpoint'ler standart `ApiResponse` formatını kullanır:
 - BCrypt.Net-Next
 - Swashbuckle.AspNetCore (Swagger)
 
+## 🧪 Test
+
+### Hızlı Test
+
+Projeyi çalıştırdıktan sonra (yeni bir terminal'de):
+
+```bash
+# Test scriptini çalıştır
+./test-api.sh
+```
+
+Bu script şunları test eder:
+- ✅ Health check endpoint (`/ping`)
+- ✅ Swagger UI erişilebilirliği
+- ✅ User CRUD operasyonları
+- ✅ Product CRUD operasyonları
+- ✅ Hata senaryoları (duplicate email, invalid rating, not found)
+
+### Manuel Test
+
+1. **Health Check:**
+   ```bash
+   curl http://localhost:5000/ping
+   ```
+   Beklenen: `pong`
+
+2. **Swagger UI:**
+   Tarayıcıda `http://localhost:5000` adresine gidin
+
+3. **User Oluştur:**
+   ```bash
+   curl -X POST http://localhost:5000/api/users \
+     -H "Content-Type: application/json" \
+     -d '{"username":"testuser","email":"test@example.com","password":"Test123!","role":"User"}'
+   ```
+
+Detaylı test rehberi için `TEST_REHBERI.md` dosyasına bakın.
+
 ## 📄 Lisans
 
 Bu proje eğitim amaçlı geliştirilmiştir.
