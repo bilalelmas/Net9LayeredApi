@@ -14,7 +14,6 @@ using Net9LayeredApi.Infrastructure.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 // OpenAPI/Swagger
-builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -59,7 +58,6 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Net9 Layered API v1");
         c.RoutePrefix = string.Empty; // Swagger'ı root'ta göster
     });
-    app.MapOpenApi();
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
