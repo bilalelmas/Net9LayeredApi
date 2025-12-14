@@ -41,7 +41,7 @@ cd Net9LayeredApi
 
 ### 2. SQL Server Kurulumu
 
-macOS için SQL Server kurulumu için `SQL_SERVER_KURULUM.md` dosyasına bakın.
+Docker ile SQL Server container'ı oluşturun:
 
 ```bash
 docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourStrong@Passw0rd" \

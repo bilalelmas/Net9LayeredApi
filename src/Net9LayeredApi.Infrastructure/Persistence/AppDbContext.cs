@@ -18,10 +18,10 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // TODO: Configuration dosyaları eklendikten sonra aktif edilecek
+        // Entity configuration'ları doğrudan burada yapılandırılıyor
+        // Alternatif: Configuration dosyaları kullanılabilir (IEntityTypeConfiguration<T>)
         // modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         
-        // Geçici: Doğrudan yapılandırma (Configuration dosyaları eklendikten sonra kaldırılacak)
         ConfigureEntities(modelBuilder);
         
         base.OnModelCreating(modelBuilder);

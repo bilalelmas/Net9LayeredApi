@@ -31,7 +31,7 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 
 var app = builder.Build();
 
-// Geçici: Veritabanını oluştur (migration yerine)
+// Veritabanı oluşturma ve migration uygulama
 using (var scope = app.Services.CreateScope())
 {
     try
@@ -39,6 +39,9 @@ using (var scope = app.Services.CreateScope())
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogInformation("Veritabanı oluşturuluyor...");
+        
+        // EnsureCreated: Veritabanı yoksa oluşturur (migration kullanmadan)
+        // Production'da migration kullanılmalı: dbContext.Database.Migrate()
         var created = dbContext.Database.EnsureCreated();
         logger.LogInformation($"Veritabanı oluşturuldu: {created}");
     }
