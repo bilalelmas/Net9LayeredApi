@@ -30,3 +30,8 @@ appsettings.Production.json
 appsettings.*.json
 !appsettings.json
 
+## Analiz ve Plan Dosyaları (commit edilmemeli)
+*ANALIZ*.md
+*PLAN*.md
+PROJE_ANALIZI.md
+
