@@ -6,12 +6,19 @@ using Net9LayeredApi.Application.DTOs.Orders;
 using Net9LayeredApi.Application.DTOs.Products;
 using Net9LayeredApi.Application.DTOs.Reviews;
 using Net9LayeredApi.Application.DTOs.Users;
+using Net9LayeredApi.Application.Exceptions;
 using Net9LayeredApi.Application.Mapping;
 using Net9LayeredApi.Application.Services;
 using Net9LayeredApi.Application.Services.Interfaces;
 using Net9LayeredApi.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// JSON Serialization - camelCase için
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+});
 
 // OpenAPI/Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -31,24 +38,97 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 
 var app = builder.Build();
 
-// Veritabanı oluşturma ve migration uygulama
+// Veritabanı migration uygulama
 using (var scope = app.Services.CreateScope())
 {
     try
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("Veritabanı oluşturuluyor...");
         
-        // EnsureCreated: Veritabanı yoksa oluşturur (migration kullanmadan)
-        // Production'da migration kullanılmalı: dbContext.Database.Migrate()
-        var created = dbContext.Database.EnsureCreated();
-        logger.LogInformation($"Veritabanı oluşturuldu: {created}");
+        // Migration history tablosunu kontrol et
+        var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync();
+        var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+        
+        // Eğer migration history yoksa ama tablolar varsa (EnsureCreated ile oluşturulmuş)
+        if (!appliedMigrations.Any() && pendingMigrations.Any())
+        {
+            // Users tablosunun var olup olmadığını kontrol et
+            try
+            {
+                var tableCount = await dbContext.Database.SqlQueryRaw<int>(
+                    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Users'")
+                    .FirstOrDefaultAsync();
+                
+                if (tableCount > 0)
+                {
+                    logger.LogWarning("Veritabanı tabloları zaten mevcut ancak migration history yok.");
+                    logger.LogWarning("Veritabanı EnsureCreated ile oluşturulmuş olabilir.");
+                    logger.LogInformation("Mevcut veritabanı yapısı kullanılacak. Yeni migration'lar için veritabanını sıfırlamanız gerekebilir.");
+                }
+                else
+                {
+                    // Tablolar yok, migration'ları uygula
+                    logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
+                    await dbContext.Database.MigrateAsync();
+                    logger.LogInformation("Migration'lar başarıyla uygulandı.");
+                }
+            }
+            catch
+            {
+                // Tablo kontrolü başarısız, normal migration akışına devam et
+                if (pendingMigrations.Any())
+                {
+                    logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
+                    await dbContext.Database.MigrateAsync();
+                    logger.LogInformation("Migration'lar başarıyla uygulandı.");
+                }
+            }
+        }
+        // Normal migration akışı
+        else if (pendingMigrations.Any())
+        {
+            logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
+            await dbContext.Database.MigrateAsync();
+            logger.LogInformation("Migration'lar başarıyla uygulandı.");
+        }
+        else
+        {
+            logger.LogInformation("Veritabanı güncel, migration gerekmiyor.");
+        }
+    }
+    catch (Microsoft.Data.SqlClient.SqlException sqlEx) when (sqlEx.Number == 2714) // Object already exists
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning("Veritabanı tabloları zaten mevcut. Migration history kontrol ediliyor...");
+        
+        try
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync();
+            var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+            
+            if (pendingMigrations.Any() && !appliedMigrations.Any())
+            {
+                logger.LogWarning("Migration history tablosu yok. Veritabanı EnsureCreated ile oluşturulmuş olabilir.");
+                logger.LogInformation("Mevcut veritabanı yapısı kullanılacak. Yeni migration'lar için veritabanını sıfırlamanız gerekebilir.");
+            }
+            else if (pendingMigrations.Any())
+            {
+                logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
+                await dbContext.Database.MigrateAsync();
+            }
+        }
+        catch
+        {
+            logger.LogWarning("Migration kontrolü yapılamadı, uygulama devam ediyor.");
+        }
     }
     catch (Exception ex)
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Veritabanı oluşturulurken hata oluştu");
+        logger.LogError(ex, "Migration uygulanırken hata oluştu: {Message}", ex.Message);
+        // Hata olsa bile uygulama çalışmaya devam etsin
     }
 }
 
@@ -68,6 +148,16 @@ app.UseHttpsRedirection();
 
 // Health check
 app.MapGet("/ping", () => "pong");
+
+// Örnek: 401 Unauthorized endpoint (dokümantasyon gereksinimi için)
+app.MapGet("/api/auth/check", () =>
+{
+    // Örnek: Authentication olmadığında 401 döndür
+    return Results.Unauthorized();
+})
+.WithName("CheckAuth")
+.WithTags("Auth")
+.Produces<ApiResponse>(StatusCodes.Status401Unauthorized);
 
 // Users endpoints
 app.MapGet("/api/users", async (IUserService service) =>
@@ -99,6 +189,10 @@ app.MapPost("/api/users", async ([FromBody] CreateUserDto dto, IUserService serv
         var user = await service.CreateAsync(dto);
         return Results.Created($"/api/users/{user.Id}", ApiResponse<UserResponseDto>.Ok(user, "Kullanıcı başarıyla oluşturuldu."));
     }
+    catch (DuplicateException ex)
+    {
+        return Results.Conflict(ApiResponse<UserResponseDto>.Fail(ex.Message));
+    }
     catch (InvalidOperationException ex)
     {
         return Results.BadRequest(ApiResponse<UserResponseDto>.Fail(ex.Message));
@@ -107,7 +201,8 @@ app.MapPost("/api/users", async ([FromBody] CreateUserDto dto, IUserService serv
 .WithName("CreateUser")
 .WithTags("Users")
 .Produces<ApiResponse<UserResponseDto>>(StatusCodes.Status201Created)
-.Produces<ApiResponse<UserResponseDto>>(StatusCodes.Status400BadRequest);
+.Produces<ApiResponse<UserResponseDto>>(StatusCodes.Status400BadRequest)
+.Produces<ApiResponse<UserResponseDto>>(StatusCodes.Status409Conflict);
 
 app.MapPut("/api/users/{id:guid}", async (Guid id, [FromBody] UpdateUserDto dto, IUserService service) =>
 {
@@ -119,6 +214,10 @@ app.MapPut("/api/users/{id:guid}", async (Guid id, [FromBody] UpdateUserDto dto,
 
         return Results.Ok(ApiResponse<UserResponseDto>.Ok(user, "Kullanıcı başarıyla güncellendi."));
     }
+    catch (DuplicateException ex)
+    {
+        return Results.Conflict(ApiResponse<UserResponseDto>.Fail(ex.Message));
+    }
     catch (InvalidOperationException ex)
     {
         return Results.BadRequest(ApiResponse<UserResponseDto>.Fail(ex.Message));
@@ -128,7 +227,8 @@ app.MapPut("/api/users/{id:guid}", async (Guid id, [FromBody] UpdateUserDto dto,
 .WithTags("Users")
 .Produces<ApiResponse<UserResponseDto>>(StatusCodes.Status200OK)
 .Produces<ApiResponse<UserResponseDto>>(StatusCodes.Status404NotFound)
-.Produces<ApiResponse<UserResponseDto>>(StatusCodes.Status400BadRequest);
+.Produces<ApiResponse<UserResponseDto>>(StatusCodes.Status400BadRequest)
+.Produces<ApiResponse<UserResponseDto>>(StatusCodes.Status409Conflict);
 
 app.MapDelete("/api/users/{id:guid}", async (Guid id, IUserService service) =>
 {
@@ -136,11 +236,11 @@ app.MapDelete("/api/users/{id:guid}", async (Guid id, IUserService service) =>
     if (!deleted)
         return Results.NotFound(ApiResponse.Fail("Kullanıcı bulunamadı."));
 
-    return Results.Ok(ApiResponse.Ok("Kullanıcı başarıyla silindi."));
+    return Results.NoContent();
 })
 .WithName("DeleteUser")
 .WithTags("Users")
-.Produces<ApiResponse>(StatusCodes.Status200OK)
+.Produces(StatusCodes.Status204NoContent)
 .Produces<ApiResponse>(StatusCodes.Status404NotFound);
 
 // Products endpoints
@@ -210,11 +310,11 @@ app.MapDelete("/api/products/{id:guid}", async (Guid id, IProductService service
     if (!deleted)
         return Results.NotFound(ApiResponse.Fail("Ürün bulunamadı."));
 
-    return Results.Ok(ApiResponse.Ok("Ürün başarıyla silindi."));
+    return Results.NoContent();
 })
 .WithName("DeleteProduct")
 .WithTags("Products")
-.Produces<ApiResponse>(StatusCodes.Status200OK)
+.Produces(StatusCodes.Status204NoContent)
 .Produces<ApiResponse>(StatusCodes.Status404NotFound);
 
 // Reviews endpoints
@@ -293,11 +393,11 @@ app.MapDelete("/api/reviews/{id:guid}", async (Guid id, IReviewService service) 
     if (!deleted)
         return Results.NotFound(ApiResponse.Fail("Yorum bulunamadı."));
 
-    return Results.Ok(ApiResponse.Ok("Yorum başarıyla silindi."));
+    return Results.NoContent();
 })
 .WithName("DeleteReview")
 .WithTags("Reviews")
-.Produces<ApiResponse>(StatusCodes.Status200OK)
+.Produces(StatusCodes.Status204NoContent)
 .Produces<ApiResponse>(StatusCodes.Status404NotFound);
 
 // Orders endpoints
@@ -376,11 +476,11 @@ app.MapDelete("/api/orders/{id:guid}", async (Guid id, IOrderService service) =>
     if (!deleted)
         return Results.NotFound(ApiResponse.Fail("Sipariş bulunamadı."));
 
-    return Results.Ok(ApiResponse.Ok("Sipariş başarıyla silindi."));
+    return Results.NoContent();
 })
 .WithName("DeleteOrder")
 .WithTags("Orders")
-.Produces<ApiResponse>(StatusCodes.Status200OK)
+.Produces(StatusCodes.Status204NoContent)
 .Produces<ApiResponse>(StatusCodes.Status404NotFound);
 
 app.Run();

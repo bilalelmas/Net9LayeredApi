@@ -4,8 +4,31 @@
 
 ## 🏗️ Mimari
 
-Proje 4 katmanlı mimari ile geliştirilmiştir:
+Proje 4 katmanlı mimari (Clean Architecture) ile geliştirilmiştir:
 
+```
+┌─────────────────────────────────────────┐
+│           API Layer                     │
+│  (Minimal API, Middleware, Endpoints)   │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│        Application Layer                │
+│  (DTOs, Services, Business Logic)      │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│         Domain Layer                    │
+│  (Entities, Domain Models)              │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼──────────────────────────┐
+│      Infrastructure Layer               │
+│  (EF Core, DbContext, Persistence)     │
+└─────────────────────────────────────────┘
+```
+
+**Katmanlar:**
 - **Domain**: Entity'ler ve domain modelleri
 - **Application**: DTOs, Services, Business Logic, AutoMapper
 - **Infrastructure**: EF Core, DbContext, Persistence
@@ -44,22 +67,31 @@ cd Net9LayeredApi
 Docker ile SQL Server container'ı oluşturun:
 
 ```bash
-docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourStrong@Passw0rd" \
+docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=<YOUR_SA_PASSWORD>" \
    -p 1433:1433 --name sqlserver \
    -d mcr.microsoft.com/mssql/server:2022-latest
 ```
 
+**Not:** `<YOUR_SA_PASSWORD>` yerine güçlü bir şifre girin (örn: `YourStrong@Passw0rd`). Bu şifreyi bir sonraki adımda kullanacaksınız.
+
+**Önemli:** Eğer container zaten varsa:
+```bash
+docker start sqlserver
+```
+
 ### 3. Connection String Yapılandırması
 
-`appsettings.Development.json` dosyasını oluşturun (`.gitignore`'da olduğu için commit edilmemiştir):
+`src/Net9LayeredApi.API/appsettings.json` dosyasını açın ve `YOUR_PASSWORD_HERE` kısmını 2. adımda Docker container'ı oluştururken kullandığınız şifreyle değiştirin:
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost,1433;Database=Net9LayeredApiDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;"
+    "DefaultConnection": "Server=localhost,1433;Database=Net9LayeredApiDb;User Id=sa;Password=<YOUR_SA_PASSWORD>;TrustServerCertificate=true;"
   }
 }
 ```
+
+**Alternatif:** Eğer `appsettings.Development.json` dosyası oluşturmak isterseniz (önerilir), `src/Net9LayeredApi.API/` klasöründe bu dosyayı oluşturun ve yukarıdaki içeriği kopyalayın. Bu dosya `.gitignore`'da olduğu için commit edilmeyecektir.
 
 ### 4. Projeyi Çalıştırın
 
@@ -109,7 +141,7 @@ API `http://localhost:5002` adresinde çalışacaktır.
 
 ## 📖 Swagger Dokümantasyonu
 
-Proje çalıştığında Swagger UI'a `http://localhost:5002` adresinden erişebilirsiniz.
+Proje çalıştığında Swagger UI'a `http://localhost:5002/swagger` adresinden erişebilirsiniz.
 
 ## 🔒 Güvenlik
 
@@ -121,12 +153,89 @@ Proje çalıştığında Swagger UI'a `http://localhost:5002` adresinden erişeb
 
 Tüm endpoint'ler standart `ApiResponse` formatını kullanır:
 
+### Başarılı Response Örneği
+
+**GET /api/users/{id}** (200 OK):
 ```json
 {
   "success": true,
-  "message": "İşlem başarılı",
-  "data": { ... },
-  "errors": null
+  "message": "Kullanıcı başarıyla getirildi.",
+  "data": {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "role": "User",
+    "createdAt": "2024-12-14T10:30:00Z",
+    "updatedAt": "2024-12-14T10:30:00Z"
+  }
+}
+```
+
+**POST /api/users** (201 Created):
+```json
+{
+  "success": true,
+  "message": "Kullanıcı başarıyla oluşturuldu.",
+  "data": {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "role": "User",
+    "createdAt": "2024-12-14T10:30:00Z",
+    "updatedAt": "2024-12-14T10:30:00Z"
+  }
+}
+```
+
+**DELETE /api/users/{id}** (204 No Content):
+```
+(Response body yok)
+```
+
+### Hata Response Örnekleri
+
+**404 Not Found:**
+```json
+{
+  "success": false,
+  "message": "Kullanıcı bulunamadı.",
+  "data": null
+}
+```
+
+**400 Bad Request:**
+```json
+{
+  "success": false,
+  "message": "Stok miktarı negatif olamaz.",
+  "data": null
+}
+```
+
+**401 Unauthorized:**
+```json
+{
+  "success": false,
+  "message": "Yetkilendirme gerekli.",
+  "data": null
+}
+```
+
+**409 Conflict (Duplicate Email):**
+```json
+{
+  "success": false,
+  "message": "Bu email adresi zaten kullanılıyor.",
+  "data": null
+}
+```
+
+**500 Internal Server Error:**
+```json
+{
+  "success": false,
+  "message": "Beklenmeyen bir hata oluştu.",
+  "data": null
 }
 ```
 

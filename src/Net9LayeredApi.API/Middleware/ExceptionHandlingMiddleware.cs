@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Net9LayeredApi.API.Common;
+using Net9LayeredApi.Application.Exceptions;
 
 namespace Net9LayeredApi.API.Middleware;
 
@@ -22,6 +23,24 @@ public sealed class ExceptionHandlingMiddleware
         try
         {
             await _next(context);
+        }
+        catch (DuplicateException ex)
+        {
+            _logger.LogWarning(ex, "Çakışma hatası: {Message}", ex.Message);
+
+            if (context.Response.HasStarted)
+            {
+                _logger.LogWarning("Yanıt başlatıldıktan sonra hata oluştu, status/body yazılamıyor.");
+                throw;
+            }
+
+            context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+            context.Response.ContentType = "application/json";
+
+            var response = ApiResponse.Fail(ex.Message);
+            var json = JsonSerializer.Serialize(response);
+
+            await context.Response.WriteAsync(json);
         }
         catch (InvalidOperationException ex)
         {

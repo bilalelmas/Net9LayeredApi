@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Net9LayeredApi.Application.DTOs.Users;
+using Net9LayeredApi.Application.Exceptions;
 using Net9LayeredApi.Application.Services.Interfaces;
 using Net9LayeredApi.Domain.Entities;
 using Net9LayeredApi.Infrastructure.Persistence;
@@ -32,12 +33,12 @@ public class UserService : IUserService
 
     public async Task<UserResponseDto> CreateAsync(CreateUserDto dto)
     {
-        // Unique kontrolü
+        // Unique kontrolü - 409 Conflict için özel exception
         if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
-            throw new InvalidOperationException("Bu email adresi zaten kullanılıyor.");
+            throw new DuplicateException("Bu email adresi zaten kullanılıyor.");
 
         if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
-            throw new InvalidOperationException("Bu kullanıcı adı zaten kullanılıyor.");
+            throw new DuplicateException("Bu kullanıcı adı zaten kullanılıyor.");
 
         var user = _mapper.Map<User>(dto);
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
@@ -57,14 +58,14 @@ public class UserService : IUserService
         if (dto.Email != null && dto.Email != user.Email)
         {
             if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
-                throw new InvalidOperationException("Bu email adresi zaten kullanılıyor.");
+                throw new DuplicateException("Bu email adresi zaten kullanılıyor.");
         }
 
         // Username unique kontrolü
         if (dto.Username != null && dto.Username != user.Username)
         {
             if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
-                throw new InvalidOperationException("Bu kullanıcı adı zaten kullanılıyor.");
+                throw new DuplicateException("Bu kullanıcı adı zaten kullanılıyor.");
         }
 
         _mapper.Map(dto, user);
