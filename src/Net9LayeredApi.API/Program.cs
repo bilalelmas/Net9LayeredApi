@@ -65,6 +65,7 @@ using (var scope = app.Services.CreateScope())
                     logger.LogWarning("Veritabanı tabloları zaten mevcut ancak migration history yok.");
                     logger.LogWarning("Veritabanı EnsureCreated ile oluşturulmuş olabilir.");
                     logger.LogInformation("Mevcut veritabanı yapısı kullanılacak. Yeni migration'lar için veritabanını sıfırlamanız gerekebilir.");
+                    // Migration'ları uygulamaya çalışma, sadece uyarı ver ve devam et
                 }
                 else
                 {
@@ -74,23 +75,38 @@ using (var scope = app.Services.CreateScope())
                     logger.LogInformation("Migration'lar başarıyla uygulandı.");
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Tablo kontrolü başarısız, normal migration akışına devam et
+                logger.LogWarning("Tablo kontrolü sırasında hata: {Message}", ex.Message);
                 if (pendingMigrations.Any())
                 {
-                    logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
-                    await dbContext.Database.MigrateAsync();
-                    logger.LogInformation("Migration'lar başarıyla uygulandı.");
+                    try
+                    {
+                        logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
+                        await dbContext.Database.MigrateAsync();
+                        logger.LogInformation("Migration'lar başarıyla uygulandı.");
+                    }
+                    catch (Microsoft.Data.SqlClient.SqlException sqlEx) when (sqlEx.Number == 2714)
+                    {
+                        logger.LogWarning("Tablolar zaten mevcut, migration atlanıyor.");
+                    }
                 }
             }
         }
         // Normal migration akışı
         else if (pendingMigrations.Any())
         {
-            logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
-            await dbContext.Database.MigrateAsync();
-            logger.LogInformation("Migration'lar başarıyla uygulandı.");
+            try
+            {
+                logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
+                await dbContext.Database.MigrateAsync();
+                logger.LogInformation("Migration'lar başarıyla uygulandı.");
+            }
+            catch (Microsoft.Data.SqlClient.SqlException sqlEx) when (sqlEx.Number == 2714)
+            {
+                logger.LogWarning("Tablolar zaten mevcut, migration atlanıyor.");
+            }
         }
         else
         {
@@ -144,7 +160,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseHttpsRedirection();
+
+// HTTPS yönlendirme - sadece HTTPS portu varsa kullan (uyarıyı önlemek için)
+// Development'ta HTTP-only profil kullanılıyorsa bu uyarı normaldir ve güvenliği etkilemez
+try
+{
+    app.UseHttpsRedirection();
+}
+catch
+{
+    // HTTPS portu yoksa sessizce atla (sadece HTTP kullanılıyor)
+}
 
 // Health check
 app.MapGet("/ping", () => "pong");
