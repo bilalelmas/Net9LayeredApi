@@ -25,10 +25,9 @@ obj/
 [Ll]og/
 
 ## App Settings (hassas bilgiler içerir)
-appsettings.Development.json
-appsettings.Production.json
 appsettings.*.json
 !appsettings.json
+!appsettings.Development.json
 
 ## Analiz ve Plan Dosyaları (commit edilmemeli)
 *ANALIZ*.md

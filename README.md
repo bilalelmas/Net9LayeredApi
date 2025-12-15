@@ -81,17 +81,15 @@ docker start sqlserver
 
 ### 3. Connection String Yapılandırması
 
-`src/Net9LayeredApi.API/appsettings.json` dosyasını açın ve `YOUR_PASSWORD_HERE` kısmını 2. adımda Docker container'ı oluştururken kullandığınız şifreyle değiştirin:
+`src/Net9LayeredApi.API/appsettings.Development.json` dosyasını açın ve aşağıdaki connection string içindeki `<YOUR_SA_PASSWORD>` kısmını, 2. adımda Docker container'ı oluştururken kullandığınız `SA_PASSWORD` ile değiştirin:
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost,1433;Database=Net9LayeredApiDb;User Id=sa;Password=<YOUR_SA_PASSWORD>;TrustServerCertificate=true;"
+    "DefaultConnection": "Server=localhost,1433;Database=Net9LayeredApiDb_Clean;User Id=sa;Password=<YOUR_SA_PASSWORD>;TrustServerCertificate=true;"
   }
 }
 ```
-
-**Alternatif:** Eğer `appsettings.Development.json` dosyası oluşturmak isterseniz (önerilir), `src/Net9LayeredApi.API/` klasöründe bu dosyayı oluşturun ve yukarıdaki içeriği kopyalayın. Bu dosya `.gitignore`'da olduğu için commit edilmeyecektir.
 
 ### 4. Projeyi Çalıştırın
 

@@ -1,6 +1,10 @@
-@Net9LayeredApi.API_HostAddress = http://localhost:5000
+@Net9LayeredApi.API_HostAddress = http://localhost:5002
 
-GET {{Net9LayeredApi.API_HostAddress}}/weatherforecast/
+### Health Check
+GET {{Net9LayeredApi.API_HostAddress}}/ping
+
+### Get All Users
+GET {{Net9LayeredApi.API_HostAddress}}/api/users
 Accept: application/json
 
 ###

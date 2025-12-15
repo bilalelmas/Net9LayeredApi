@@ -48,14 +48,16 @@ public class AppDbContext : DbContext
         // Product
         modelBuilder.Entity<Product>(e =>
         {
-            e.ToTable("Products");
+            e.ToTable("Products", t => 
+            {
+                t.HasCheckConstraint("CK_Product_Stock_NonNegative", "[Stock] >= 0");
+                t.HasCheckConstraint("CK_Product_Price_NonNegative", "[Price] >= 0");
+            });
             e.HasKey(x => x.Id);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
             e.Property(x => x.Description).IsRequired();
             e.Property(x => x.Price).HasColumnType("decimal(18,2)").IsRequired();
             e.Property(x => x.Stock).IsRequired();
-            e.HasCheckConstraint("CK_Product_Stock_NonNegative", "[Stock] >= 0");
-            e.HasCheckConstraint("CK_Product_Price_NonNegative", "[Price] >= 0");
             e.HasMany(x => x.Reviews).WithOne(x => x.Product).HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.OrderItems).WithOne(x => x.Product).HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -63,34 +65,37 @@ public class AppDbContext : DbContext
         // Review
         modelBuilder.Entity<Review>(e =>
         {
-            e.ToTable("Reviews");
+            e.ToTable("Reviews", t => t.HasCheckConstraint("CK_Review_Rating_Range", "[Rating] >= 1 AND [Rating] <= 5"));
             e.HasKey(x => x.Id);
             e.Property(x => x.Rating).IsRequired();
             e.Property(x => x.Comment).IsRequired();
-            e.HasCheckConstraint("CK_Review_Rating_Range", "[Rating] >= 1 AND [Rating] <= 5");
         });
         
         // Order
         modelBuilder.Entity<Order>(e =>
         {
-            e.ToTable("Orders");
+            e.ToTable("Orders", t =>
+            {
+                t.HasCheckConstraint("CK_Order_TotalPrice_NonNegative", "[TotalPrice] >= 0");
+                t.HasCheckConstraint("CK_Order_Status_Valid", $"[Status] IN ('{OrderStatus.Pending}', '{OrderStatus.Completed}', '{OrderStatus.Cancelled}')");
+            });
             e.HasKey(x => x.Id);
             e.Property(x => x.Status).IsRequired().HasMaxLength(50).HasDefaultValue(OrderStatus.Pending);
             e.Property(x => x.TotalPrice).HasColumnType("decimal(18,2)").IsRequired();
-            e.HasCheckConstraint("CK_Order_TotalPrice_NonNegative", "[TotalPrice] >= 0");
-            e.HasCheckConstraint("CK_Order_Status_Valid", $"[Status] IN ('{OrderStatus.Pending}', '{OrderStatus.Completed}', '{OrderStatus.Cancelled}')");
             e.HasMany(x => x.Items).WithOne(x => x.Order).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
         });
         
         // OrderItem
         modelBuilder.Entity<OrderItem>(e =>
         {
-            e.ToTable("OrderItems");
+            e.ToTable("OrderItems", t =>
+            {
+                t.HasCheckConstraint("CK_OrderItem_Quantity_Positive", "[Quantity] > 0");
+                t.HasCheckConstraint("CK_OrderItem_UnitPrice_NonNegative", "[UnitPrice] >= 0");
+            });
             e.HasKey(x => x.Id);
             e.Property(x => x.Quantity).IsRequired();
             e.Property(x => x.UnitPrice).HasColumnType("decimal(18,2)").IsRequired();
-            e.HasCheckConstraint("CK_OrderItem_Quantity_Positive", "[Quantity] > 0");
-            e.HasCheckConstraint("CK_OrderItem_UnitPrice_NonNegative", "[UnitPrice] >= 0");
         });
     }
 

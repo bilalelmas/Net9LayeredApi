@@ -41,109 +41,27 @@ var app = builder.Build();
 // Veritabanı migration uygulama
 using (var scope = app.Services.CreateScope())
 {
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
     try
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        
-        // Migration history tablosunu kontrol et
-        var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync();
         var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
-        
-        // Eğer migration history yoksa ama tablolar varsa (EnsureCreated ile oluşturulmuş)
-        if (!appliedMigrations.Any() && pendingMigrations.Any())
+
+        if (pendingMigrations.Any())
         {
-            // Users tablosunun var olup olmadığını kontrol et
-            try
-            {
-                var tableCount = await dbContext.Database.SqlQueryRaw<int>(
-                    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Users'")
-                    .FirstOrDefaultAsync();
-                
-                if (tableCount > 0)
-                {
-                    logger.LogWarning("Veritabanı tabloları zaten mevcut ancak migration history yok.");
-                    logger.LogWarning("Veritabanı EnsureCreated ile oluşturulmuş olabilir.");
-                    logger.LogInformation("Mevcut veritabanı yapısı kullanılacak. Yeni migration'lar için veritabanını sıfırlamanız gerekebilir.");
-                    // Migration'ları uygulamaya çalışma, sadece uyarı ver ve devam et
-                }
-                else
-                {
-                    // Tablolar yok, migration'ları uygula
-                    logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
-                    await dbContext.Database.MigrateAsync();
-                    logger.LogInformation("Migration'lar başarıyla uygulandı.");
-                }
-            }
-            catch (Exception ex)
-            {
-                // Tablo kontrolü başarısız, normal migration akışına devam et
-                logger.LogWarning("Tablo kontrolü sırasında hata: {Message}", ex.Message);
-                if (pendingMigrations.Any())
-                {
-                    try
-                    {
-                        logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
-                        await dbContext.Database.MigrateAsync();
-                        logger.LogInformation("Migration'lar başarıyla uygulandı.");
-                    }
-                    catch (Microsoft.Data.SqlClient.SqlException sqlEx) when (sqlEx.Number == 2714)
-                    {
-                        logger.LogWarning("Tablolar zaten mevcut, migration atlanıyor.");
-                    }
-                }
-            }
-        }
-        // Normal migration akışı
-        else if (pendingMigrations.Any())
-        {
-            try
-            {
-                logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
-                await dbContext.Database.MigrateAsync();
-                logger.LogInformation("Migration'lar başarıyla uygulandı.");
-            }
-            catch (Microsoft.Data.SqlClient.SqlException sqlEx) when (sqlEx.Number == 2714)
-            {
-                logger.LogWarning("Tablolar zaten mevcut, migration atlanıyor.");
-            }
+            logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
+            await dbContext.Database.MigrateAsync();
+            logger.LogInformation("Migration'lar başarıyla uygulandı.");
         }
         else
         {
             logger.LogInformation("Veritabanı güncel, migration gerekmiyor.");
         }
     }
-    catch (Microsoft.Data.SqlClient.SqlException sqlEx) when (sqlEx.Number == 2714) // Object already exists
-    {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogWarning("Veritabanı tabloları zaten mevcut. Migration history kontrol ediliyor...");
-        
-        try
-        {
-            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync();
-            var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
-            
-            if (pendingMigrations.Any() && !appliedMigrations.Any())
-            {
-                logger.LogWarning("Migration history tablosu yok. Veritabanı EnsureCreated ile oluşturulmuş olabilir.");
-                logger.LogInformation("Mevcut veritabanı yapısı kullanılacak. Yeni migration'lar için veritabanını sıfırlamanız gerekebilir.");
-            }
-            else if (pendingMigrations.Any())
-            {
-                logger.LogInformation("Bekleyen migration'lar uygulanıyor...");
-                await dbContext.Database.MigrateAsync();
-            }
-        }
-        catch
-        {
-            logger.LogWarning("Migration kontrolü yapılamadı, uygulama devam ediyor.");
-        }
-    }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Migration uygulanırken hata oluştu: {Message}", ex.Message);
+        logger.LogError(ex, "Migration uygulanırken beklenmeyen bir hata oluştu.");
         // Hata olsa bile uygulama çalışmaya devam etsin
     }
 }
@@ -161,15 +79,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// HTTPS yönlendirme - sadece HTTPS portu varsa kullan (uyarıyı önlemek için)
-// Development'ta HTTP-only profil kullanılıyorsa bu uyarı normaldir ve güvenliği etkilemez
-try
+// HTTPS yönlendirme - sadece Production'da aktif (Development'ta HTTP-only profil kullanılıyor)
+if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
-}
-catch
-{
-    // HTTPS portu yoksa sessizce atla (sadece HTTP kullanılıyor)
 }
 
 // Health check
