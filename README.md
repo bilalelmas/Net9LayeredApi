@@ -67,29 +67,29 @@ cd Net9LayeredApi
 Docker ile SQL Server container'ı oluşturun:
 
 ```bash
-docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=<YOUR_SA_PASSWORD>" \
-   -p 1433:1433 --name sqlserver \
-   -d mcr.microsoft.com/mssql/server:2022-latest
+docker run -e ACCEPT_EULA=Y -e SA_PASSWORD=Passw0rd123! -p 1433:1433 --name sqlserver -d mcr.microsoft.com/mssql/server:2022-latest
 ```
 
-**Not:** `<YOUR_SA_PASSWORD>` yerine güçlü bir şifre girin (örn: `YourStrong@Passw0rd`). Bu şifreyi bir sonraki adımda kullanacaksınız.
+> **Not:** Yukarıdaki şifre (`Passw0rd123!`) `appsettings.Development.json` ile uyumludur. Farklı bir şifre kullanmak isterseniz her iki yerde de aynı şifreyi kullandığınızdan emin olun.
 
 **Önemli:** Eğer container zaten varsa:
 ```bash
 docker start sqlserver
 ```
 
-### 3. Connection String Yapılandırması
+### 3. Connection String Yapılandırması (Opsiyonel)
 
-`src/Net9LayeredApi.API/appsettings.Development.json` dosyasını açın ve aşağıdaki connection string içindeki `<YOUR_SA_PASSWORD>` kısmını, 2. adımda Docker container'ı oluştururken kullandığınız `SA_PASSWORD` ile değiştirin:
+Eğer farklı bir şifre kullandıysanız, `src/Net9LayeredApi.API/appsettings.Development.json` dosyasındaki connection string'i güncellemeniz gerekir:
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost,1433;Database=Net9LayeredApiDb_Clean;User Id=sa;Password=<YOUR_SA_PASSWORD>;TrustServerCertificate=true;"
+    "DefaultConnection": "Server=localhost,1433;Database=Net9LayeredApiDb_Clean;User Id=sa;Password=Passw0rd123!;TrustServerCertificate=true;"
   }
 }
 ```
+
+> **Not:** `Password=` kısmını Docker container'ı oluştururken kullandığınız şifre ile değiştirin.
 
 ### 4. Projeyi Çalıştırın
 
@@ -99,7 +99,7 @@ dotnet restore
 dotnet run
 ```
 
-API `http://localhost:5002` adresinde çalışacaktır.
+API `http://localhost:5002` adresinde çalışacaktır. Swagger UI için: `http://localhost:5002/swagger`
 
 ## 📚 API Endpoints
 
